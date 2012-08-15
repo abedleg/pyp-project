@@ -29,7 +29,9 @@ import java.util.Date;
 
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
+import android.app.ActivityManager;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -44,6 +46,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.util.Log;
+import android.util.LruCache;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
@@ -63,6 +66,46 @@ public class MainActivity extends PypActivity{
 	ImageView img; 
 	Bitmap picture; //Holds the original bitmap
 	Uri picUri; //Holds the uri of the original picture
+	Bitmap rBitmap; //Holds the effected picture (current picture)
+	private LruCache mMemoryCache;
+	
+	//Colormatrices
+	ColorMatrix effectMatrix;
+	final float[] sepMat = {
+			0.3930000066757202f, 0.7689999938011169f, 0.1889999955892563f, 0, 0, 
+			0.3490000069141388f, 0.6859999895095825f, 0.1679999977350235f, 0, 0, 
+			0.2720000147819519f, 0.5339999794960022f, 0.1309999972581863f, 0, 0, 
+			0, 0, 0, 1, 0, 0, 0, 0, 0, 1};
+	final float invert[] = {
+			-1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 
+			0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
+			0.0f, 0.0f, -1.0f, 1.0f, 1.0f, 
+			0.0f, 0.0f, 0.0f, 1.0f, 0.0f
+			};
+	final float dark[] = {
+			0.3f, 0.0f, 0.0f, 0.0f, 0.0f, 
+			0.0f, 0.5f, 0.0f, 0.0f, 0.0f,
+			0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 
+			0.0f, 0.0f, 0.0f, 1.0f, 1.0f
+			};
+	final float sweetDreams[] = {
+			0.4f, 0.3f, 3.0f, 0.0f, 0.0f, 
+			0.2f, 0.4f, 1.0f, 0.0f, 0.0f,
+			1.0f, 0.0f, 0.3f, 0.0f, 0.0f, 
+			0.0f, 0.0f, 0.0f, 1.0f, 1.0f
+			};
+	final float vivid[] = {
+			3.0f, 0.0f, 0.0f, 0.0f, -155.0f,
+			0.0f, 3.0f, 0.0f, 0.0f, -155.0f,
+			0.0f, 0.0f, 3.0f, 0.0f, -155.0f,
+			0.0f, 0.0f, 0.0f, 1.0f, 0.0f
+	};
+	final float testMat[] = {
+			1.0f, 0.5f, 0.5f, 0.0f, 0.0f,
+			0.5f, 0.5f, 0.5f, 0.0f, 0.0f,
+			0.5f, 0.5f, 0.5f, 0.0f, 0.0f,
+			255.0f, 0.0f, 0.0f, 0.0f, 0.0f
+	};
 	
 	public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -86,13 +129,22 @@ public class MainActivity extends PypActivity{
         		//Next line removes the extra information from the intent (the URI)
         		getIntent().removeExtra("gPic");
         	}
+        	//Storing the original picture
+        	Drawable drawing = image.getDrawable();
+    		picture = ((BitmapDrawable)drawing).getBitmap();
         }
-        Log.i("TAG", "Image Displayed");
+        
         //Declaring imageview bitmap for further effects
         img = (ImageView)findViewById(R.id.main_picture);
-		Drawable drawing = img.getDrawable();
-		picture = ((BitmapDrawable)drawing).getBitmap();
-        
+				
+		//In case of method called after onSaveInstanceState() -- after orientation change
+        if (savedInstanceState != null) {
+        	img.setImageBitmap((Bitmap)savedInstanceState.getParcelable("currentPic"));
+        	picture = (Bitmap)savedInstanceState.getParcelable("originalPic");
+        }
+        Log.i("TAG", "Image Displayed");
+        Drawable drawing = img.getDrawable();
+		rBitmap = ((BitmapDrawable)drawing).getBitmap();
         //Implementing the onClickListeners for the buttons:
         //First we get the ImageButtons
         backButton = (ImageButton)findViewById(R.id.MainImageButtonBack);
@@ -282,28 +334,55 @@ public class MainActivity extends PypActivity{
 	public void onResume() {
 		super.onResume();
 		if (chosenEffect > 0) {
+			effectMatrix = new ColorMatrix();
 			switch (chosenEffect) {
 			case 1: {
 				applyOriginal();
 				break;
 			}
 			case 2: {
-				applyGrayscaleEffect();
+				effectMatrix.setSaturation(0);
 				break;
 			}
 			case 3: {
-				applySepiaEffect();
+				effectMatrix.set(sepMat);
 				break;
 			}
 			case 4: {
-				applyInverseEffect();
+				effectMatrix.set(invert);
+				break;
+			}
+			case 5: {
+				effectMatrix.set(dark);
+				break;
+			}
+			case 6: {
+				effectMatrix.set(sweetDreams);
+				break;
+			}
+			case 7: {
+				effectMatrix.set(vivid);
+				break;
+			}
+			case 8: {
+				effectMatrix.set(testMat);
 				break;
 			}
 			default: break;
 			}
 			//After setting the effect, we reset the variable.
 			chosenEffect = 0;
+			applyEffect();
 		}
+	}
+	
+	//Handling orientation change
+	@Override
+	protected void onSaveInstanceState(Bundle outState) {
+		super.onSaveInstanceState(outState);
+		
+		outState.putParcelable("currentPic", rBitmap);
+		outState.putParcelable("originalPic", picture);
 	}
 	
 	//Saving the file to Gallery/Pimped Pictures
@@ -335,14 +414,10 @@ public class MainActivity extends PypActivity{
 		}
 	}
 	
-	//GrayScale effect
-	public void applyGrayscaleEffect() {
-		Log.i("TAG", "Bitmap created");
-		
-		ColorMatrix bwMatrix = new ColorMatrix();
-	    bwMatrix.setSaturation(0);
-	    final ColorMatrixColorFilter colorFilter = new ColorMatrixColorFilter(bwMatrix);
-	    Bitmap rBitmap = picture.copy(Bitmap.Config.ARGB_8888, true);
+	//Applying the effect
+	public void applyEffect() {		
+	    final ColorMatrixColorFilter colorFilter = new ColorMatrixColorFilter(effectMatrix);
+	    rBitmap = picture.copy(Bitmap.Config.ARGB_8888, true);
 	    Paint paint = new Paint();
 	    paint.setColorFilter(colorFilter);
 	    Canvas myCanvas = new Canvas(rBitmap);
@@ -354,44 +429,9 @@ public class MainActivity extends PypActivity{
 		img.setImageBitmap(rBitmap);
 	}
 	
-	//Sepia effect
-	public void applySepiaEffect(){		
-		ColorMatrix sepiaMatrix =new ColorMatrix();
-		float[] sepMat={0.3930000066757202f, 0.7689999938011169f, 0.1889999955892563f, 0, 0, 0.3490000069141388f, 0.6859999895095825f, 0.1679999977350235f, 0, 0, 0.2720000147819519f, 0.5339999794960022f, 0.1309999972581863f, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1};
-		sepiaMatrix.set(sepMat);
-		final ColorMatrixColorFilter colorFilter= new ColorMatrixColorFilter(sepiaMatrix);
-		Bitmap rBitmap = picture.copy(Bitmap.Config.ARGB_8888, true);
-		Paint paint=new Paint();
-		paint.setColorFilter(colorFilter);
-		Canvas myCanvas =new Canvas(rBitmap);
-		myCanvas.drawBitmap(rBitmap, 0, 0, paint);
-		
-		img.setImageBitmap(rBitmap);
-	}
-	
-	//Inverse effect
-	public void applyInverseEffect() {
-		float invert[] =
-		{
-		-1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 
-		0.0f, -1.0f, 0.0f, 1.0f, 1.0f,
-		0.0f, 0.0f, -1.0f, 1.0f, 1.0f, 
-		0.0f, 0.0f, 0.0f, 1.0f, 0.0f
-		};
-		ColorMatrix invMatrix = new ColorMatrix(invert);
-		final ColorMatrixColorFilter colorFilter = new ColorMatrixColorFilter(invMatrix);
-		Bitmap rBitmap = picture.copy(Bitmap.Config.ARGB_8888, true);
-		Paint paint = new Paint();
-		paint.setColorFilter(colorFilter);
-		
-		Canvas myCanvas =new Canvas(rBitmap);
-		myCanvas.drawBitmap(rBitmap, 0, 0, paint);
-		
-		img.setImageBitmap(rBitmap);
-	}
-	
 	//Back to original colors
 	public void applyOriginal() {
+		rBitmap = picture;
 		img.setImageBitmap(picture);
 	}
 }

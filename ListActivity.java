@@ -39,7 +39,9 @@ public class ListActivity extends PypActivity{
 		setContentView(R.layout.list);
 		
 		ListView list = (ListView)findViewById(R.id.EffectsList);
-		String[] values = new String[] {"Original", "GrayScale", "Sepia", "Inverse"};
+		String[] values = new String[] {"Original", "GrayScale", "Sepia", 
+										"Inverse", "Darkening", "Sweet dream", 
+										"Vivid","Test"};
 		ArrayAdapter<String> adapter = 
 			new ArrayAdapter<String>(this, R.layout.list_item, values);
 		list.setAdapter(adapter);
@@ -69,6 +71,18 @@ public class ListActivity extends PypActivity{
 				}else if (strText.equalsIgnoreCase(getResources().getString(R.string.effects_inverse))){
 					//backToMain.putExtra("chosenEffect", 4);
 					chosenEffect = 4;
+				}else if (strText.equalsIgnoreCase(getResources().getString(R.string.effects_darkening))){
+					//backToMain.putExtra("chosenEffect", 4);
+					chosenEffect = 5;
+				}else if (strText.equalsIgnoreCase(getResources().getString(R.string.effects_dreams))){
+					//backToMain.putExtra("chosenEffect", 4);
+					chosenEffect = 6;
+				}else if (strText.equalsIgnoreCase(getResources().getString(R.string.effects_vivid))){
+					//backToMain.putExtra("chosenEffect", 4);
+					chosenEffect = 7;
+				}else if (strText.equalsIgnoreCase(getResources().getString(R.string.effects_test))){
+					//backToMain.putExtra("chosenEffect", 4);
+					chosenEffect = 8;
 				}
 				//startActivity(backToMain);
 				finish();
