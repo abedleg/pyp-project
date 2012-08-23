@@ -41,14 +41,13 @@ public class ListActivity extends PypActivity{
 		ListView list = (ListView)findViewById(R.id.EffectsList);
 		String[] values = new String[] {"Original", "GrayScale", "Sepia", 
 										"Inverse", "Darkening", "Sweet dream", 
-										"Vivid","Test"};
+										"Vivid"};
 		ArrayAdapter<String> adapter = 
 			new ArrayAdapter<String>(this, R.layout.list_item, values);
 		list.setAdapter(adapter);
 		
 		list.setOnItemClickListener(new OnItemClickListener(){
 
-			@Override
 			public void onItemClick(AdapterView<?> parent, View view, int position,
 					long id) {
 				// TODO Auto-generated method stub
@@ -80,9 +79,6 @@ public class ListActivity extends PypActivity{
 				}else if (strText.equalsIgnoreCase(getResources().getString(R.string.effects_vivid))){
 					//backToMain.putExtra("chosenEffect", 4);
 					chosenEffect = 7;
-				}else if (strText.equalsIgnoreCase(getResources().getString(R.string.effects_test))){
-					//backToMain.putExtra("chosenEffect", 4);
-					chosenEffect = 8;
 				}
 				//startActivity(backToMain);
 				finish();

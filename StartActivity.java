@@ -52,8 +52,7 @@ public class StartActivity extends PypActivity {
         
         camImg.setOnClickListener(new View.OnClickListener() {
 			
-			@Override
-			public void onClick(View v) {
+			public void onClick(View v) { 
 				// Launch the camera and save the photo to manipulate
 				//Have to make sure that the file exists before taking the picture
 				//or else some types of android phones will be create a bug after
@@ -63,7 +62,7 @@ public class StartActivity extends PypActivity {
 					new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
 				//Get the picture taken
 				Uri fileUri = Uri.fromFile(getOutputMediaFile());
-				camPicUri = fileUri;
+				originalUri = fileUri;
 				//Send the picture with the intent
 				pictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, fileUri);
 				startActivityForResult(pictureIntent, CAMERA_REQUEST);
@@ -72,13 +71,12 @@ public class StartActivity extends PypActivity {
         
         galImg.setOnClickListener(new View.OnClickListener() {
 			
-			@Override
 			public void onClick(View v) {
 				// Launch the gallery to select an image to manipulate
 				Intent pickPhoto = new Intent(Intent.ACTION_PICK);
 				pickPhoto.setType("image/*");
 				startActivityForResult(pickPhoto, GALLERY_REQUEST);
-			}
+			} 
 		});
     }
     
@@ -91,7 +89,7 @@ public class StartActivity extends PypActivity {
     		}else if (resultCode == Activity.RESULT_OK) {
     			Intent toMain = new Intent(StartActivity.this, MainActivity.class);
     			//NEXT LINE IS WRONG!!!!
-    			toMain.putExtra("cPic", camPicUri);
+    			toMain.putExtra("cPic", originalUri);
     			startActivity(toMain);
     		}
     		break;

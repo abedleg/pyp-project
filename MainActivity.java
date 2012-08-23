@@ -27,14 +27,13 @@ import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-import android.annotation.SuppressLint;
-import android.annotation.TargetApi;
 import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.ColorMatrix;
 import android.graphics.ColorMatrixColorFilter;
@@ -44,16 +43,13 @@ import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
-import android.provider.MediaStore;
 import android.util.Log;
-import android.util.LruCache;
-import android.view.MenuInflater;
-import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.PopupMenu;
-
+import android.support.v4.util.LruCache;
+ 
 public class MainActivity extends PypActivity{
 
 	ImageButton backButton;
@@ -67,7 +63,6 @@ public class MainActivity extends PypActivity{
 	Bitmap picture; //Holds the original bitmap
 	Uri picUri; //Holds the uri of the original picture
 	Bitmap rBitmap; //Holds the effected picture (current picture)
-	private LruCache mMemoryCache;
 	
 	//Colormatrices
 	ColorMatrix effectMatrix;
@@ -100,51 +95,52 @@ public class MainActivity extends PypActivity{
 			0.0f, 0.0f, 3.0f, 0.0f, -155.0f,
 			0.0f, 0.0f, 0.0f, 1.0f, 0.0f
 	};
-	final float testMat[] = {
-			1.0f, 0.5f, 0.5f, 0.0f, 0.0f,
-			0.5f, 0.5f, 0.5f, 0.0f, 0.0f,
-			0.5f, 0.5f, 0.5f, 0.0f, 0.0f,
-			255.0f, 0.0f, 0.0f, 0.0f, 0.0f
-	};
+	
+	
 	
 	public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.main);
-        
+         
         //We get the ImageView, and using the intent extra information
         //which contains the picture taken with the camera or
         //the picture picked from the gallery, we set the image for the ImageView.
-        ImageView image = (ImageView)findViewById(R.id.main_picture);
+        img = (ImageView)findViewById(R.id.main_picture);
         Bundle extras = getIntent().getExtras();
         if (extras != null) {
         	//We have picture taken with the camera
         	if (extras.containsKey("cPic")) {
         		Uri picUri = (Uri)extras.get("cPic");
-        		image.setImageURI(picUri);
+        		img.setImageURI(picUri);
         		getIntent().removeExtra("cPic");
             //We have picture picked from gallery
         	}else if (extras.containsKey("gPic")){
         		Uri gPicUri = (Uri)extras.get("gPic");
-        		image.setImageURI(gPicUri);
+        		img.setImageURI(gPicUri);
         		//Next line removes the extra information from the intent (the URI)
         		getIntent().removeExtra("gPic");
         	}
         	//Storing the original picture
-        	Drawable drawing = image.getDrawable();
+        	Drawable drawing = img.getDrawable();
     		picture = ((BitmapDrawable)drawing).getBitmap();
+        } 
+        		
+         
+        //Get the cached bitmaps
+        if (mMemoryCache.get("current") != null) {
+        	rBitmap = (Bitmap)mMemoryCache.get("current");
+        	img.setImageBitmap(rBitmap);
         }
+        if (mMemoryCache.get("original") != null) {
+        	picture = (Bitmap)mMemoryCache.get("original");
+        }
+        mMemoryCache.evictAll();
         
-        //Declaring imageview bitmap for further effects
-        img = (ImageView)findViewById(R.id.main_picture);
-				
-		//In case of method called after onSaveInstanceState() -- after orientation change
-        if (savedInstanceState != null) {
-        	img.setImageBitmap((Bitmap)savedInstanceState.getParcelable("currentPic"));
-        	picture = (Bitmap)savedInstanceState.getParcelable("originalPic");
-        }
+        //rBitmap - current bitmap on the imageView
         Log.i("TAG", "Image Displayed");
         Drawable drawing = img.getDrawable();
 		rBitmap = ((BitmapDrawable)drawing).getBitmap();
+		
         //Implementing the onClickListeners for the buttons:
         //First we get the ImageButtons
         backButton = (ImageButton)findViewById(R.id.MainImageButtonBack);
@@ -182,7 +178,6 @@ public class MainActivity extends PypActivity{
         View.OnClickListener ButtonListener = new View.OnClickListener() {
 			
 
-			@Override
 			public void onClick(View v) {
 				ImageButton button = (ImageButton)v;
 				//If we click on the back button
@@ -194,14 +189,13 @@ public class MainActivity extends PypActivity{
 					.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
 						//If we click Yes, the current activity is finished,
 						//and we return to the previous activity.
-						@Override
 						public void onClick(DialogInterface dialog, int which) {
+							mMemoryCache.evictAll();
 							MainActivity.this.finish();
-						}
+						} 
 					})
 					.setNegativeButton("No", new DialogInterface.OnClickListener() {
 						//If we click No, we return to the current activity
-						@Override
 						public void onClick(DialogInterface dialog, int which) {
 							dialog.cancel();
 						}
@@ -224,7 +218,6 @@ public class MainActivity extends PypActivity{
 					.setCancelable(false)
 					.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
 						//If we click Yes, picture is saved to gallery/Pimped Pictures
-						@Override
 						public void onClick(DialogInterface dialog, int which) {
 							try {
 								saveFile();
@@ -236,7 +229,6 @@ public class MainActivity extends PypActivity{
 					})
 					.setNegativeButton("No", new DialogInterface.OnClickListener() {
 						//If we click No, we return to the current activity
-						@Override
 						public void onClick(DialogInterface dialog, int which) {
 							dialog.cancel();
 						}
@@ -262,77 +254,16 @@ public class MainActivity extends PypActivity{
         }; 
         backButton.setOnClickListener(ButtonListener);
 		effectsButton.setOnClickListener(ButtonListener);
+		extrasButton.setOnClickListener(ButtonListener);
 		saveButton.setOnClickListener(ButtonListener);
 		shareButton.setOnClickListener(ButtonListener);
 	}
 	
-	//The state of the activity is saved when we leave it
-	//This is necessary because when we click on the button Effects, we actually
-	//leave the activity and proceed to the ListActivity. We are saving the state
-	//to have access to the ImageView image which has to be changed.
-	/*public void onSaveInstanceState(Bundle outState) {
-		super.onSaveInstanceState(outState);
-		outState.putParcelable("ImageBitmap", picUri);;
-	}*/
-	//WHEN STARTING THIS ACTIVITY FROM LISTACTIVITY, ONCREATE() METHOD IS CALLED
-	//AND NOT THE FOLLOWING ONRESTOREINSTANCE() METHOD. HAS TO MODIFY:
-	//OR CHANGE STARTACTIVITY TO RESUMEACTIVITY(?) IN LISTACTIVITY
-	//OR HAVE TO PUT THE FOLLOWING OPERATIONS INTO ONCREATE() METHOD!
-	/*public void OnRestoreInstanceState(Bundle savedInstanceState) {
-		super.onRestoreInstanceState(savedInstanceState);
-		picUri = savedInstanceState.getParcelable("ImageBitmap");
-		try {
-			picture = MediaStore.Images.Media.getBitmap(this.getContentResolver(), picUri);
-		} catch (FileNotFoundException e) {
-
-			e.printStackTrace();
-		} catch (IOException e) {
-			
-			e.printStackTrace();
-		}
-		img = (ImageView)findViewById(R.id.main_picture);
-		if (chosenEffect > 0) {
-			switch (chosenEffect) {
-			case 1: {
-				applyOriginal();
-				break;
-			}
-			case 2: {
-				applyGrayscaleEffect();
-				break;
-			}
-			case 3: {
-				applySepiaEffect();
-				break;
-			}
-			case 4: {
-				applyInverseEffect();
-				break;
-			}
-			default: break;
-			}
-			chosenEffect = 0;
-		}
-		Bundle extras = getIntent().getExtras();
-		if (extras != null) {
-			if (extras.containsKey("chosenEffect")) {
-				if (extras.getInt("chosenEffect") == 1) {
-					applyOriginal();
-				}else if (extras.getInt("chosenEffect") == 2) {
-					applyGrayscaleEffect();
-				}else if (extras.getInt("chosenEffect") == 3) {
-					applySepiaEffect();
-				}else if (extras.getInt("chosenEffect") == 4) {
-					applyInverseEffect();
-				}
-			}
-		}
-		getIntent().removeExtra("chosenEffect");
-	}*/
 	
 	//After resuming from ListActivity, we set the appropriate effect.
 	public void onResume() {
 		super.onResume();
+		
 		if (chosenEffect > 0) {
 			effectMatrix = new ColorMatrix();
 			switch (chosenEffect) {
@@ -342,37 +273,39 @@ public class MainActivity extends PypActivity{
 			}
 			case 2: {
 				effectMatrix.setSaturation(0);
+				applyEffect();
 				break;
 			}
 			case 3: {
 				effectMatrix.set(sepMat);
+				applyEffect();
 				break;
 			}
 			case 4: {
 				effectMatrix.set(invert);
+				applyEffect();
 				break;
 			}
 			case 5: {
 				effectMatrix.set(dark);
+				applyEffect();
 				break;
 			}
 			case 6: {
 				effectMatrix.set(sweetDreams);
+				applyEffect();
 				break;
 			}
 			case 7: {
 				effectMatrix.set(vivid);
-				break;
-			}
-			case 8: {
-				effectMatrix.set(testMat);
+				applyEffect();
 				break;
 			}
 			default: break;
 			}
 			//After setting the effect, we reset the variable.
 			chosenEffect = 0;
-			applyEffect();
+			
 		}
 	}
 	
@@ -381,8 +314,9 @@ public class MainActivity extends PypActivity{
 	protected void onSaveInstanceState(Bundle outState) {
 		super.onSaveInstanceState(outState);
 		
-		outState.putParcelable("currentPic", rBitmap);
-		outState.putParcelable("originalPic", picture);
+		mMemoryCache.evictAll();
+		cacheBitmap("current", rBitmap);
+		cacheBitmap("original", picture);
 	}
 	
 	//Saving the file to Gallery/Pimped Pictures
@@ -414,24 +348,46 @@ public class MainActivity extends PypActivity{
 		}
 	}
 	
+
+	//Caching bitmap and returns the uri (key - indicated which bitmap is cached)
+	public void cacheBitmap(String key, Bitmap bitmap) {
+		if (mMemoryCache.get(key) == null) {
+			Log.i("CACHE", "PUTTING rBITMAP INTO CACHE");
+			mMemoryCache.put(key, bitmap);
+		}
+	}
+	
+	
 	//Applying the effect
-	public void applyEffect() {		
+	public void applyEffect() {	 	
 	    final ColorMatrixColorFilter colorFilter = new ColorMatrixColorFilter(effectMatrix);
-	    rBitmap = picture.copy(Bitmap.Config.ARGB_8888, true);
+	    /*Bitmap cBitmap = null;
+	    if (mMemoryCache.get("current") != null) {
+        	cBitmap = (Bitmap)mMemoryCache.get("current");
+        }*/
+	     
+		rBitmap = picture.copy(Bitmap.Config.ARGB_8888, true); 
 	    Paint paint = new Paint();
 	    paint.setColorFilter(colorFilter);
 	    Canvas myCanvas = new Canvas(rBitmap);
-	    myCanvas.drawBitmap(rBitmap, 0, 0, paint);
+	    myCanvas.drawBitmap(rBitmap, 0, 0, paint); 
 	    
-	    /*picture.recycle();
-	    picture = null;*/
+	    /*cBitmap.recycle();
+	    cBitmap = null;*/
 		
 		img.setImageBitmap(rBitmap);
+		//Caching bitmaps
+		mMemoryCache.remove("current");
+		cacheBitmap("current", rBitmap);
+		
 	}
+	 
 	
 	//Back to original colors
 	public void applyOriginal() {
-		rBitmap = picture;
+		rBitmap = (Bitmap)mMemoryCache.get("original");
+		picture = (Bitmap)mMemoryCache.get("original");
+		mMemoryCache.evictAll();
 		img.setImageBitmap(picture);
 	}
 }

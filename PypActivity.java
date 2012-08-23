@@ -22,10 +22,12 @@ import android.app.Activity;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
+import android.support.v4.util.LruCache;
 
 public class PypActivity extends Activity{
 
 	public static final String APP_PREFS = "AppPrefs";
-	public static Uri camPicUri;
+	public static Uri originalUri;
 	public static int chosenEffect = 0;
+	public static LruCache<String, Object> mMemoryCache;
 }

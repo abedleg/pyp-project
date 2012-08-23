@@ -21,9 +21,12 @@ package com.pixelpixel.pyp;
 import com.pixelpixel.pyp.R;
 
 import android.app.Activity;
+import android.app.ActivityManager;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.v4.util.LruCache;
 import android.util.DisplayMetrics;
 import android.view.animation.Animation;
 import android.view.animation.Animation.AnimationListener;
@@ -39,6 +42,13 @@ public class SplashActivity extends PypActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.splash);
+        
+        //Initializing the application cache
+        final int memClass = ((ActivityManager)
+				this.getSystemService(Context.ACTIVITY_SERVICE)).getMemoryClass();
+		final int cacheSize = 1024*1024*memClass / 4;
+		mMemoryCache = new LruCache<String, Object>(cacheSize); 
+        
     /*
      * Setting up the animation for the logo
      * */
@@ -46,7 +56,6 @@ public class SplashActivity extends PypActivity {
         Animation sa1 = AnimationUtils.loadAnimation(this, R.anim.splash_anim);
         sa1.setAnimationListener(new AnimationListener() {
 
-			@Override
 			public void onAnimationEnd(Animation arg0) {
 				/*
 				 * After the end of the "growing" animation, we call the "shrinking" animation.
@@ -54,7 +63,6 @@ public class SplashActivity extends PypActivity {
 				Animation sa2 = AnimationUtils.loadAnimation(SplashActivity.this, R.anim.splash_anim2);
 				sa2.setAnimationListener(new AnimationListener() {
 
-					@Override
 					public void onAnimationEnd(Animation animation) {
 						/*
 						 * After the end of the "shrinking" animation, we proceed to the
@@ -69,20 +77,16 @@ public class SplashActivity extends PypActivity {
 					    }, 5000);	
 					}
 
-					@Override
 					public void onAnimationRepeat(Animation animation) {}
 
-					@Override
 					public void onAnimationStart(Animation animation) {}
 					
 				});
 				splash_logo.startAnimation(sa2);
 			}
 
-			@Override
 			public void onAnimationRepeat(Animation animation) {}
 
-			@Override
 			public void onAnimationStart(Animation animation) {}
         	
         });
